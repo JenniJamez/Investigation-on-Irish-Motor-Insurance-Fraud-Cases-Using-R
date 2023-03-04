@@ -1,0 +1,251 @@
+---
+title: "Data Exploration"
+author: "JENNIFER AIGBUGWILI"
+date: "18/12/2021"
+output: 
+        bookdown::word_document2:
+        fig_caption: true
+    
+---
+
+```{r setup, include= FALSE}
+knitr::opts_chunk$set(
+    echo = FALSE,
+    message = FALSE,
+    warning = FALSE,
+    out.width = "100%",
+    out.height = "500px",
+    fig.align = "center")
+```
+
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(knitr)
+library(bookdown)
+```
+
+
+```{r}
+#Loading Dataset
+fraud_tbl <- read_csv("00_data/fraud data.csv")
+```
+
+## Problem Statement
+The project task is to explore and make insight for a motor fraud case which contains different rows and columns, this dataser requires some cleaning, we also carried out some Exploratory Data Analysis (EDA) which is a very important processing the analysis phase. here we replaced missing variable, converting from charachter to numerical value when needed, replacing specail characher, and sepaating and spliting of columns.
+
+
+```{r}
+#  Encode Passenger Columns  and replacing the N/A--------------------------------------------
+passenger_encode_tbl <- fraud_tbl %>% 
+    mutate(passenger1 = ifelse(is.na(passenger1), 0, 1),
+           passenger2 = ifelse(is.na(passenger2), 0, 1)) %>% 
+    
+    mutate(passenger1 = as_factor(passenger1), 
+           passenger2 = as_factor(passenger2))
+
+
+```
+
+
+```{r}
+#separating the number, location and place from address
+fraud_address_tbl <- passenger_encode_tbl %>%
+    separate(col = address, 
+             into = c("number", "Location", "place"), 
+             sep = " ") %>%
+    select(-number, -place) %>%
+    mutate(Location = as_factor(Location)) 
+
+```
+
+
+
+```{r}
+#cleaning location table using case_when operator
+
+fraud_place_tbl <- fraud_address_tbl %>%
+    
+    mutate(Location = Location %>% str_replace_all("[0-9£$=)&+_({~^*:;',&.<>#%!>@?/]", "" ))
+
+```
+
+```{r}
+ fraud_place_tb2 <- fraud_place_tbl %>% 
+     
+      mutate(Location = case_when(Location %in% c("BAROW","BARR") ~ "BARROW",TRUE ~ Location)) %>%
+     mutate(Location = case_when(Location %in% c("CORIB") ~ "CORRIB",TRUE ~ Location )) %>%
+     mutate(Location = case_when(Location %in% c("BLACKATER","BLACWATER","BLACATER","BLACKWAR") ~ "BLACKWATER",TRUE ~ Location )) %>%
+     mutate(Location = case_when(Location %in% c("BOYN", "BNE") ~ "BOYNE",TRUE ~ Location )) %>%
+     mutate(Location = case_when(Location %in% c("SERN","SEN") ~ "SEVERN",TRUE ~ Location )) %>%
+     mutate(Location = case_when(Location %in% c("THES") ~ "THAMES",TRUE ~ Location )) %>%
+     mutate(Location = case_when(Location %in% c("LFEY","LIY","LFFEY") ~ "LIFFEY",TRUE ~ Location )) %>%
+     mutate(Location = case_when(Location %in% c("SLA","SLEY","SLNEY") ~ "SLANEY",TRUE ~ Location )) %>%
+     mutate(Location = case_when(Location %in% c("CAC") ~ "CAMAC",TRUE ~ Location )) %>%
+     mutate(Location = case_when(Location %in% c("DODD","DODER") ~ "DODDER",TRUE ~ Location )) %>%
+     mutate(Location = case_when(Location %in% c("SHANON") ~ "SHANNON",TRUE ~ Location )) %>%
+     mutate(Location = case_when(Location %in% c("TMES") ~ "THAMES",TRUE ~ Location )) %>%
+     mutate( Location = replace(Location , match("MARK MCDONAGH", driver), "SLANEY"))
+
+```
+
+
+
+```{r}
+ # using case when operator to cleanse the repaircost and change the column to numeric type
+ fraud_place_tb3 <-   fraud_place_tb2 %>%
+
+     mutate(repaircost = case_when(repaircost %in% c("approx 2k","approx 2~") ~ "2000",TRUE ~ repaircost )) %>%
+     mutate(repaircost = case_when(repaircost %in% c("approx 3k") ~ "3000",TRUE ~ repaircost )) %>%
+     mutate(repaircost = case_when(repaircost %in% c("approx 500","approx 5!!") ~ "500",TRUE ~ repaircost )) %>%
+     mutate(repaircost = case_when(repaircost %in% c("approx 1k") ~ "1000",TRUE ~ repaircost )) %>%
+     mutate(repaircost = case_when(repaircost %in% c("above 3k") ~ "3500",TRUE ~ repaircost ))
+```
+
+
+
+```{r}
+
+# select and groupby location 
+    fraud_place_tb3 %>% 
+    select(driver, Location,fraudFlag) %>% 
+    group_by(Location)
+    
+# code to count the number of each location
+    LOCATION_PLACE <- fraud_place_tb2 %>% 
+   group_by(Location) %>% 
+   count(Location)
+```
+
+
+    
+```{r}
+
+ #Grouping the age columns into Age range.
+FraudageInterval <- fraud_place_tb3 %>% mutate(Age_Group_Interval = case_when(age >= 81  & age <= 100 ~ '81-100',
+                                                                                  age >= 71  & age <= 80 ~ '71-80',
+                                                                                  age >= 61  & age <= 70 ~ '61-70',
+                                                                                  age >= 51  & age <= 60 ~ '51-60',
+                                                                                  age >= 41  & age <= 50 ~ '41-50',
+                                                                                  age >= 31  & age <= 40 ~ '31-40',
+                                                                                  age >= 21  & age <= 30 ~ '21-30',
+                                                                                  age >= 11  & age <= 20 ~ '11-20',
+                                                                                  age >= 0  & age <= 10 ~ '0-10')) 
+    
+    ```
+    
+## Solution Summary
+
+
+### Exploratory Visualisations
+
+A range of visualisations is developed to analyse and gain insight in respect to different location and different number of passenger and insurence cost for the motor fraud case.  
+
+```{r echo=FALSE, fig.cap = "repaircost and fraudflads in different location"}
+
+
+    fraudcase_engineered_tbl %>% 
+    
+    
+    # repair cost for different location
+ggplot(fraud_place_tb3,aes(x=repaircost, fill=Location))+
+    geom_col()+
+    theme_bw()+
+    geom_bar()+
+    
+    # formatting
+    labs(y="count",
+         title="Repaircost of different location")
+
+#fraudcases in different location
+ggplot(fraud_place_tb3,aes(x=Location, fill=fraudFlag))+
+    theme_bw()+
+    geom_bar()+
+    scale_fill_manual(values = c("DarkKhaki","BLACK"))+
+    
+    # formatting
+    labs(y="frequency",
+         title="<strong><span style='color:DarkKhaki'>LOCATION</span></strong></b> and <strong><span style='color:BLACK'>FRAUDFLAG</strong></b>:REPRESENTING FRAUDCASE OF ALL LOCATION",
+         subtitle = "Location and Fraudflag frequency")+
+    theme(
+        plot.title = element_markdown(), legend.position = "none",
+        axis.text = element_markdown() #Added element_markdown() to axis.text.x in theme
+    )
+
+
+# The amount of fraud case in passenger 2
+ggplot(fraud_place_tb3,aes(x=fraudFlag, fill=passenger2))+
+    theme_bw()+
+    geom_bar()+
+    scale_fill_manual(values = c("DarkKhaki","BLACK"))+
+    
+    # formatting
+    labs(y="fraudFlag",
+         title="The amount of fraudcase in passenger 2",
+         subtitle = "0 $ 1 representing empty and fill")
+
+# The amount of fraud case in passenger 1
+ggplot(fraud_place_tb3,aes(x=fraudFlag, fill=passenger1))+
+    theme_bw()+
+    geom_bar()+
+    scale_fill_manual(values = c("BLACK","DarkKhaki"))+
+    
+    # formatting
+    labs(y="fraudFlag",
+         title="The amount of flaudcase in passenger 1",
+         subtitle = "0 $ 1 representing empty and fill")
+
+# The amount of fraudcase from passenger2 in different location
+ggplot(fraud_place_tb3,aes(x=fraudFlag, fill=passenger2))+
+    theme_bw()+
+    facet_wrap(~Location)+
+    geom_bar()+
+    scale_fill_manual(values = c("RED","BLUE"))+
+    
+    # formatting
+    labs(y="fraudFlag",
+         title = "Passenger location 2class")
+
+
+#The amount of fraudcase from passenger1 in different location
+
+ggplot(fraud_place_tb3,aes(x=fraudFlag, fill=passenger1))+
+    theme_bw()+
+    facet_wrap(~Location)+
+    geom_bar()+
+    scale_fill_manual(values = c("BLUE","BLACK"))+
+    
+    # formatting
+    labs(y="fraudFlag",
+         title = "Passenger location 1class")
+    
+
+```
+ 
+The dataset shows the level of fraudcase in different location as well as showing its repaircost for each individual location, it also domonstrate the amount of passenger each driver had either passenger 1 or passenger 2 or both, according to locations and age range. it also identify the age range with the highest fraudflag and case. the extent to which eash age and repaircost relate which will help give more insight on the amount of fraudflags located in the dataset.
+
+
+Figure \@ref(fig:repaircost_location) highlights the  repaircost for different location. Figure \@ref(fig:weekend-variation) provides information regarding the amount of fraudcases in different location. variable across the weekend and helps understand the characteristics of the repaircost in each location and how it affect the fraudflag.
+
+
+### Engineered Features
+
+
+```{r fraudflag, echo = FALSE, fig.cap=" fraudflags in different location, which highlights the location with the highest and lowest case presented.'}
+```
+
+You can represent the insights from the EDA process to the respective model through a binary encoding process. 
+
+### Conclusions from Exploratory Analysis
+
+The conclusions from the analysis are as follows: 
+
+* The fraudflag of each location stating the highest and lowest fraudcase, severn hiving the highest and blackwater has the least.
+*The amount of fraudflags identified in passenger1 column is higher than the passenger2.   
+* The location BOYNE has no passenger identified in the passenger 2 location 
+* Severn, Shannon and Thames had the highest number of fraudflags identified when using the passenger1 and passenger2 column. 
+* Feature engineering can be used to represent the data to the model.
+*The visualization alos demonstrate the number of passenger present in each location, where 0 represent an empty cell and 1 represent a cell with passenger availability. 
+
+
